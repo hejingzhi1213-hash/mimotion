@@ -1,43 +1,54 @@
 name: 刷步数
+run-name: "${{ inputs.dry_run == 'true' && '配置验证' || '步数刷新' }} · ${{ inputs.request_id || github.run_number }}"
 
 on:
   workflow_dispatch:
+    inputs:
+      account_ids:
+        description: '账号 ID 列表（JSON）；留空执行全部启用账号'
+        required: false
+        default: '[]'
+        type: string
+      fixed_steps:
+        description: '本次准确步数；留空使用每个账号的自动范围'
+        required: false
+        default: ''
+        type: string
+      request_id:
+        description: '网页请求编号'
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: '仅验证配置，不登录账号或提交步数'
+        required: false
+        default: 'false'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mimotion-step-refresh
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - name: Checkout codes
         uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.PAT }}
-      - name: Update system and install zsh
-        run: |
-          sudo -E apt-get -qq update
-          sudo -E apt-get install zsh -y
-
       - name: 初始化Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
-
-      - name: 开始
+          python-version: '3.11'
+      - name: 安装依赖
+        run: pip3 install -r requirements.txt
+      - name: 刷新步数
         env:
           CONFIG: ${{ secrets.CONFIG }}
-          AES_KEY: ${{ secrets.AES_KEY }}
-        run: |
-          pip3 install -r requirements.txt
-          python3 main.py
-
-      - name: persist tokens
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@users.noreply.github.com
-          git add .
-          if git diff --cached --quiet; then
-            echo "No token changes to persist"
-          else
-            git commit -m "persist tokens trigger by ${{ github.event_name }}"
-            git push origin master
-          fi
+          ACCOUNT_IDS: ${{ inputs.account_ids }}
+          FIXED_STEPS: ${{ inputs.fixed_steps }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: python3 github_runner.py
