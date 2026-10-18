@@ -24,7 +24,8 @@ def parse_accounts(config):
         rows=config.get('accounts')
         if not isinstance(rows,list):raise ValueError('accounts missing')
     else:
-        users=config.get('USER','').split('#');passwords=config.get('PWD','').split('#')
+        if not isinstance(config.get('USER'),str) or not isinstance(config.get('PWD'),str):raise ValueError('missing credentials')
+        users=config['USER'].split('#');passwords=config['PWD'].split('#')
         if len(users)!=len(passwords):raise ValueError('account/password mismatch')
         rows=[dict(id='legacy-'+str(i+1),username=u,password=p,
                    min_step=config.get('MIN_STEP',18000),max_step=config.get('MAX_STEP',25000),enabled=True)
@@ -76,6 +77,8 @@ def main():
         print('配置或刷新参数不正确，请在管理页检查后重新同步。');return 1
     if os.environ.get('DRY_RUN','false').lower()=='true':
         print('配置验证通过；账号总数：%d，计划执行：%d；未登录账号、未提交步数。'%(len(accounts),len(jobs)))
+        for job in jobs:
+            print('MIMOTION_PLAN '+json.dumps({'id':job['id'],'steps':job['steps']}))
         return 0
     # All requests must have finite timeouts, including upstream calls without them.
     import requests
