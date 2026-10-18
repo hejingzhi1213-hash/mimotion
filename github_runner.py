@@ -1,6 +1,7 @@
 """GitHub workflow runner; accepts legacy CONFIG and the web manager's v2 CONFIG.
 No credential data is accepted as workflow inputs or emitted to logs.
 """
+import base64
 import contextlib
 import io
 import json
@@ -78,7 +79,7 @@ def main():
     if os.environ.get('DRY_RUN','false').lower()=='true':
         print('配置验证通过；账号总数：%d，计划执行：%d；未登录账号、未提交步数。'%(len(accounts),len(jobs)))
         for job in jobs:
-            print('MIMOTION_PLAN '+json.dumps({'id':job['id'],'steps':job['steps']}))
+            print('MIMOTION_PLAN id=%s steps=%d'%(job['id'],job['steps']))
         return 0
     # All requests must have finite timeouts, including upstream calls without them.
     import requests
@@ -92,7 +93,8 @@ def main():
         except requests.RequestException:ok,code=False,'network_error'
         except Exception:ok,code=False,'api_error'
         success+=int(ok)
-        print('MIMOTION_RESULT '+json.dumps(dict(id=job['id'],steps=job['steps'],success=ok,code=code)),flush=True)
+        payload=json.dumps(dict(id=job['id'],steps=job['steps'],success=ok,code=code)).encode()
+        print('MIMOTION_RESULT '+base64.urlsafe_b64encode(payload).decode(),flush=True)
         if i+1<len(jobs):time.sleep(5)
     print('执行账号总数%d，成功：%d，失败：%d'%(len(jobs),success,len(jobs)-success))
     return 0 if success==len(jobs) else 1

@@ -31,6 +31,7 @@ permissions:
 concurrency:
   group: mimotion-step-refresh
   cancel-in-progress: false
+  queue: max
 
 jobs:
   build:
